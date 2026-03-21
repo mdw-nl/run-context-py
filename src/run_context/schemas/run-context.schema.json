@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://uri.medicaldataworks.nl/schemas/run-context.schema.json",
+  "title": "RunContext",
+  "type": "object",
+  "required": ["entrypoint", "arguments", "inputs", "outputs"],
+  "properties": {
+    "entrypoint": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "arguments": {
+      "type": "object",
+      "required": ["named"],
+      "properties": {
+        "named": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "positional": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": true
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["uri"],
+        "properties": {
+          "uri": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["uri"],
+        "properties": {
+          "uri": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

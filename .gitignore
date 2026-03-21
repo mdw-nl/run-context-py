@@ -1,0 +1,14 @@
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.venv/
+build/
+dist/
+.eggs/
+*.egg
+pip-wheel-metadata/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+uv.lock

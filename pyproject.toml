@@ -1,0 +1,23 @@
+[build-system]
+requires = ["uv_build>=0.10.9,<0.11.0"]
+build-backend = "uv_build"
+
+[project]
+name = "run-context-py"
+version = "0.0.1"
+description = "Lightweight run-context file helpers"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+run-context-dispatch = "run_context.cli:main"
+
+[project.optional-dependencies]
+validation = ["jsonschema>=4.23.0"]
+test = ["pytest>=8"]
+
+[tool.uv.build-backend]
+module-name = "run_context"
