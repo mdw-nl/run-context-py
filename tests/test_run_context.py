@@ -20,9 +20,10 @@ def _valid_payload(input_uri: str, output_uri: str, *, name: str = "demo", named
 
 
 class _FakeEntryPoint:
-    def __init__(self, name, func):
+    def __init__(self, name, func, *, dist_name="test-dist"):
         self.name = name
         self._func = func
+        self.dist = type("_FakeDistribution", (), {"name": dist_name})()
 
     def load(self):
         return self._func
@@ -267,6 +268,92 @@ def test_dispatch_raises_on_unknown_entrypoint(tmp_path, monkeypatch):
         dispatch()
 
 
+def test_dispatch_rejects_multiple_entrypoint_distributions_by_default(
+    tmp_path, monkeypatch
+):
+    in_path = tmp_path / "input.csv"
+    out_path = tmp_path / "out.json"
+    ctx_path = tmp_path / "run_context.json"
+    _write_json(
+        ctx_path,
+        _valid_payload(str(in_path), str(out_path), name="dispatch_demo"),
+    )
+    monkeypatch.setenv("RUN_CONTEXT_FILE", str(ctx_path))
+
+    @run_context(input_uris="dataset_path", output_uris="output_path")
+    def dispatch_demo(dataset_path, output_path):
+        raise AssertionError("should not be reached")
+
+    monkeypatch.setattr(
+        "run_context.core.entry_points",
+        lambda *, group: [
+            _FakeEntryPoint("dispatch_demo", dispatch_demo, dist_name="algo-a"),
+            _FakeEntryPoint("other_entrypoint", lambda: None, dist_name="algo-b"),
+        ],
+    )
+    with pytest.raises(ValueError, match="must come from exactly 1 distribution"):
+        dispatch()
+
+
+def test_dispatch_rejects_entrypoint_with_missing_distribution_name_by_default(
+    tmp_path, monkeypatch
+):
+    in_path = tmp_path / "input.csv"
+    out_path = tmp_path / "out.json"
+    ctx_path = tmp_path / "run_context.json"
+    _write_json(
+        ctx_path,
+        _valid_payload(str(in_path), str(out_path), name="dispatch_demo"),
+    )
+    monkeypatch.setenv("RUN_CONTEXT_FILE", str(ctx_path))
+
+    @run_context(input_uris="dataset_path", output_uris="output_path")
+    def dispatch_demo(dataset_path, output_path):
+        raise AssertionError("should not be reached")
+
+    monkeypatch.setattr(
+        "run_context.core.entry_points",
+        lambda *, group: [
+            _FakeEntryPoint("dispatch_demo", dispatch_demo, dist_name=None),
+        ],
+    )
+    with pytest.raises(ValueError, match="missing distribution name metadata"):
+        dispatch()
+
+
+def test_dispatch_can_allow_multiple_entrypoint_distributions_when_disabled(
+    tmp_path, monkeypatch
+):
+    in_path = tmp_path / "input.csv"
+    out_path = tmp_path / "out.json"
+    ctx_path = tmp_path / "run_context.json"
+    _write_json(
+        ctx_path,
+        _valid_payload(str(in_path), str(out_path), name="dispatch_demo"),
+    )
+    monkeypatch.setenv("RUN_CONTEXT_FILE", str(ctx_path))
+
+    captured = {}
+
+    @run_context(input_uris="dataset_path", output_uris="output_path")
+    def dispatch_demo(dataset_path, output_path):
+        captured["dataset_path"] = dataset_path
+        captured["output_path"] = output_path
+
+    monkeypatch.setattr(
+        "run_context.core.entry_points",
+        lambda *, group: [
+            _FakeEntryPoint("dispatch_demo", dispatch_demo, dist_name="algo-a"),
+            _FakeEntryPoint("other_entrypoint", lambda: None, dist_name="algo-b"),
+        ],
+    )
+
+    dispatch(require_single_distribution=False)
+
+    assert captured["dataset_path"] == in_path
+    assert captured["output_path"] == out_path
+
+
 def test_validation_missing_dependency_raises_custom_error(monkeypatch):
     from run_context import validation as validation_module
 
@@ -305,6 +392,24 @@ def test_run_context_decorator_injects_context(tmp_path, monkeypatch):
     )
     dispatch()
     assert captured["entrypoint_name"] == "with_context"
+
+
+def test_run_context_decorated_function_can_be_called_directly(tmp_path):
+    in_path = tmp_path / "input.csv"
+    out_path = tmp_path / "out.json"
+    captured = {}
+
+    @run_context(input_uris="dataset_path", output_uris="output_path")
+    def direct_call(dataset_path, output_path, model_name=None):
+        captured["dataset_path"] = dataset_path
+        captured["output_path"] = output_path
+        captured["model_name"] = model_name
+
+    direct_call(in_path, out_path, model_name="simple")
+
+    assert captured["dataset_path"] == in_path
+    assert captured["output_path"] == out_path
+    assert captured["model_name"] == "simple"
 
 
 def test_cli_main_dispatches_with_validate_false_by_default(monkeypatch):

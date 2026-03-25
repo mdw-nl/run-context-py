@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import os
-from importlib.metadata import entry_points
+from importlib.metadata import EntryPoint, entry_points
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -176,26 +176,42 @@ class RunContext:
         return self._uris(field="outputs")
 
 
-def dispatch(*, validate: bool = False) -> None:
+def dispatch(*, validate: bool = False, require_single_distribution: bool = True) -> None:
     """
     Dispatch to the function selected by `entrypoint.name`.
 
     The callable is resolved from Python entry points in group `run_context`.
+
+    Args:
+        validate: When True, validate the run-context payload against schema
+            before entrypoint resolution/dispatch. Note this requires
+            [validation] dependencies.
+        require_single_distribution: When True, fail closed if `run_context`
+            entry points are provided by more than one installed distribution.
     """
     context = RunContext.from_env(validate=validate)
     requested = context.entrypoint_name()
-    func = _resolve_entrypoint_callable(requested)
+    func = _resolve_entrypoint_callable(
+        requested,
+        require_single_distribution=require_single_distribution,
+    )
     kwargs: dict[str, Any] = {}
     if getattr(func, "__run_context_needs_context__", False):
         kwargs["run_context"] = context
     func(**kwargs)
 
 
-def _resolve_entrypoint_callable(name: str) -> Callable[..., Any]:
+def _resolve_entrypoint_callable(
+    name: str,
+    *,
+    require_single_distribution: bool = True,
+) -> Callable[..., Any]:
     """
     Resolve one callable from entry-point group `run_context`.
     """
-    available = list(entry_points(group=RUN_CONTEXT_ENTRYPOINT_GROUP))
+    available: list[EntryPoint] = list(entry_points(group=RUN_CONTEXT_ENTRYPOINT_GROUP))
+    if require_single_distribution:
+        _raise_if_multiple_distributions(available)
     matches = [item for item in available if item.name == name]
     if not matches:
         allowed = ", ".join(sorted(item.name for item in available)) or "<none>"
@@ -209,3 +225,36 @@ def _resolve_entrypoint_callable(name: str) -> Callable[..., Any]:
             f"group '{RUN_CONTEXT_ENTRYPOINT_GROUP}'"
         )
     return matches[0].load()
+
+
+def _entrypoint_distribution_name(entry_point: Any) -> str:
+    """
+    Return the distribution name that provided this entry point.
+
+    A missing/empty distribution name is treated as invalid metadata and
+    rejected to preserve fail-closed behavior.
+    """
+    entrypoint_name = getattr(entry_point, "name", "<unknown>")
+    dist = getattr(entry_point, "dist", None)
+    name = getattr(dist, "name", None)
+    if not (isinstance(name, str) and name):
+        raise ValueError(
+            f"run-context entrypoint '{entrypoint_name}' is missing distribution "
+            "name metadata (`.dist.name`)"
+        )
+    return name
+
+
+def _raise_if_multiple_distributions(entry_points_: list[EntryPoint]) -> None:
+    """
+    Fail closed when `run_context` entry points come from multiple packages.
+    """
+    distributions = {_entrypoint_distribution_name(ep) for ep in entry_points_}
+    if len(distributions) <= 1:
+        return
+
+    found = ", ".join(sorted(distributions))
+    raise ValueError(
+        "run-context entrypoints must come from exactly 1 distribution when "
+        f"require_single_distribution=True. Found distributions: {found}"
+    )

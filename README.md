@@ -63,6 +63,8 @@ Each selector must resolve to exactly one input URI.
 ## Register Python Entry Points
 
 `dispatch()` resolves callables from Python entry-point group `"run_context"`.
+By default it requires those entrypoints to come from exactly one installed
+distribution (installed package).
 
 ```toml
 [project.entry-points."run_context"]
