@@ -43,6 +43,23 @@ if __name__ == "__main__":
 `input_uris="dataset_path"` and `output_uris="output_path"` each require
 exactly one entry in their corresponding run-context section.
 
+For multiple inputs, `input_uris` also supports selector mappings against
+`inputs[*].arguments`:
+
+```python
+@run_context(
+    input_uris={
+        "features_path": {"bind": "features"},
+        "y_path": {"bind": "y"},
+    },
+    output_uris="output_path",
+)
+def partial(features_path: Path, y_path: Path, output_path: Path) -> None:
+    ...
+```
+
+Each selector must resolve to exactly one input URI.
+
 ## Register Python Entry Points
 
 `dispatch()` resolves callables from Python entry-point group `"run_context"`.
@@ -138,6 +155,7 @@ Typical container flow:
 ## Notes
 
 - `RunContext.input_uris()` / `RunContext.output_uris()` return all URI values.
-- Mapping-based decorator configs like `input_uris={...}` / `output_uris={...}`
-  are reserved for future attribute-based mapping and currently raise
+- `input_uris={...}` mappings match against `inputs[*].arguments` key/value
+  pairs and require exactly one match per configured function argument.
+- `output_uris={...}` mappings are reserved for future work and currently raise
   `NotImplementedError`.

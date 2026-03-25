@@ -83,6 +83,22 @@ class RunContext:
     def inputs(self) -> Any:
         """
         Raw `inputs` section from run-context payload.
+
+        Example shape:
+        [
+          {
+            "id": "features",
+            "uri": "/mnt/data/features.csv",
+            "type": "csv",
+            "arguments": {"bind": "features"}
+          },
+          {
+            "id": "targets",
+            "uri": "/mnt/data/targets.csv",
+            "type": "csv",
+            "arguments": {"bind": "y"}
+          }
+        ]
         """
         return self.payload.get("inputs")
 
