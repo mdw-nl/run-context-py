@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "run-context-py"
-version = "0.0.1"
+version = "0.0.2rc2"
 description = "Lightweight run-context file helpers"
 readme = "README.md"
 license = "MIT"
