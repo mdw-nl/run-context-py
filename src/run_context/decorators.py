@@ -59,8 +59,10 @@ def run_context(
     def decorator(inner: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(inner)
         def wrapper(*args, **kwargs):
-            # dispatch() will pass run_context
             context = kwargs.pop("run_context", None)
+            if context is None:
+                # Direct Python calls bypass run-context injection entirely.
+                return inner(*args, **kwargs)
             if not isinstance(context, RunContext):
                 raise TypeError("'run_context' must be a RunContext instance")
 
