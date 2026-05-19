@@ -11,4 +11,3 @@ pip-wheel-metadata/
 .ruff_cache/
 .coverage*
 htmlcov/
-uv.lock
