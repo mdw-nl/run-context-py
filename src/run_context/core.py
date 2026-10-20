@@ -11,6 +11,7 @@ this library to help them parse it. It mainly provides:
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 from importlib.metadata import EntryPoint, entry_points
@@ -20,6 +21,24 @@ from typing import Any, Callable, Mapping
 from run_context.validation import validate_run_context
 
 RUN_CONTEXT_ENTRYPOINT_GROUP = "run_context"
+
+
+def get_env(name: str) -> str | None:
+    """
+    Read an environment variable, decoding vantage6-style encoding if present.
+
+    vantage6 nodes base32-encode every env var passed to an algorithm
+    container, with '=' padding replaced by '!'. Plain values (e.g. absolute
+    paths, which contain '/') are never valid base32 and are returned as-is.
+    """
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    try:
+        return base64.b32decode(value.replace("!", "=")).decode("utf-8")
+    except ValueError:
+        return value
+
 
 class RunContext:
     """
@@ -60,7 +79,7 @@ class RunContext:
         """
         Load run-context from the `RUN_CONTEXT_FILE` environment variable.
         """
-        run_context_file = os.environ.get("RUN_CONTEXT_FILE")
+        run_context_file = get_env("RUN_CONTEXT_FILE")
         if not run_context_file:
             raise RuntimeError("RUN_CONTEXT_FILE is not set")
         return cls.from_path(run_context_file, validate=validate)
