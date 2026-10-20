@@ -1,8 +1,10 @@
+import base64
 import json
 
 import pytest
 
 from run_context import RunContext, dispatch, run_context
+from run_context.core import get_env
 from run_context.validation import RunContextValidationUnavailableError
 
 
@@ -42,6 +44,32 @@ def test_run_context_helpers(tmp_path, monkeypatch):
     assert context.named_args() == {"x": 1}
     assert context.input_uris() == [in_path]
     assert context.output_uris() == [out_path]
+
+
+def test_get_env_decodes_vantage6_encoding(monkeypatch):
+    # value as actually set by a vantage6 4.14 node, padding '=' -> '!'
+    monkeypatch.setenv(
+        "RUN_CONTEXT_FILE",
+        "F5WW45BPMRQXIYJPORQXG2ZNGAYDAMBQGAYDAMZPOJ2W4X3DN5XHIZLYOQXGU43PNY!!!!!!",
+    )
+    assert get_env("RUN_CONTEXT_FILE") == "/mnt/data/task-000000003/run_context.json"
+
+
+def test_get_env_passes_plain_values_through(monkeypatch):
+    monkeypatch.setenv("RUN_CONTEXT_FILE", "/plain/run_context.json")
+    assert get_env("RUN_CONTEXT_FILE") == "/plain/run_context.json"
+    monkeypatch.delenv("RUN_CONTEXT_FILE")
+    assert get_env("RUN_CONTEXT_FILE") is None
+
+
+def test_from_env_reads_vantage6_encoded_path(tmp_path, monkeypatch):
+    ctx_path = tmp_path / "run_context.json"
+    _write_json(ctx_path, _valid_payload("/in.csv", "/out.json"))
+    encoded = base64.b32encode(str(ctx_path).encode()).decode().replace("=", "!")
+
+    monkeypatch.setenv("RUN_CONTEXT_FILE", encoded)
+
+    assert RunContext.from_env().source == ctx_path
 
 
 def test_dispatch_injects_arguments(tmp_path, monkeypatch):

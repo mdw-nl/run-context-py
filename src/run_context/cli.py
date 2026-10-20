@@ -4,9 +4,7 @@ Console entrypoint for run-context dispatch.
 
 from __future__ import annotations
 
-import os
-
-from run_context.core import dispatch
+from run_context.core import dispatch, get_env
 
 
 def _is_truthy(value: str | None) -> bool:
@@ -23,5 +21,5 @@ def main() -> None:
     validation before dispatch. This implies you installed the extra
     [validation] dependencies.
     """
-    validate = _is_truthy(os.environ.get("RUN_CONTEXT_FILE_VALIDATE"))
+    validate = _is_truthy(get_env("RUN_CONTEXT_FILE_VALIDATE"))
     dispatch(validate=validate)
